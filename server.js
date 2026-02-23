@@ -9,7 +9,11 @@ const {
     createTodo,
     updateTodo,
     deleteTodo,
-    getTodosForMonth
+    getTodosForMonth,
+    getAllCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory
 } = require('./database');
 
 const app = express();
@@ -96,6 +100,51 @@ app.delete('/api/todos/:id', (req, res) => {
         if (!existing) return res.status(404).json({ error: 'Todo not found' });
         deleteTodo(req.params.id);
         res.json({ message: 'Todo deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Category API Routes ────────────────────────────────────
+
+// GET /api/categories
+app.get('/api/categories', (req, res) => {
+    try {
+        res.json(getAllCategories());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/categories
+app.post('/api/categories', (req, res) => {
+    try {
+        const { name, color } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+        const cat = createCategory({ name: name.trim(), color });
+        res.status(201).json(cat);
+    } catch (err) {
+        if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Category already exists' });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/categories/:id
+app.put('/api/categories/:id', (req, res) => {
+    try {
+        const cat = updateCategory(req.params.id, req.body);
+        if (!cat) return res.status(404).json({ error: 'Category not found' });
+        res.json(cat);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/categories/:id
+app.delete('/api/categories/:id', (req, res) => {
+    try {
+        deleteCategory(req.params.id);
+        res.json({ message: 'Category deleted' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

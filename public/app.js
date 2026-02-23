@@ -105,8 +105,17 @@ function createTodoItemHTML(todo, isSubtask = false, ctx = 'list') {
 
     const subtaskClass = isSubtask ? 'subtask-item' : '';
 
+    let toggleBtn = '';
+    if (!isSubtask) {
+        toggleBtn = `
+        <button class="icon-btn subtask-toggle-btn" id="toggle-${ctx}-${todo.id}" onclick="event.stopPropagation(); toggleSubtasks(${todo.id}, '${ctx}')" style="visibility: hidden">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>`;
+    }
+
     return `
     <div class="todo-item ${todo.completed ? 'completed' : ''} ${subtaskClass}" data-id="${todo.id}" data-category="${cat}">
+      ${toggleBtn}
       <label class="todo-checkbox">
         <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id}, this.checked)">
         <span class="checkmark"></span>
@@ -189,7 +198,7 @@ async function renderListView() {
 
         // Now load subtasks for each parent
         for (const parent of parents) {
-            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id], 'list');
+            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id] || [], 'list');
         }
     }
 }
@@ -197,15 +206,36 @@ async function renderListView() {
 async function loadSubtasksIntoContainer(parentId, inlineSubs, ctx = 'list') {
     const container = document.getElementById(`subtasks-${ctx}-${parentId}`);
     if (!container) return;
-    // Use inline subs if provided, otherwise fetch
+    // Fetch only if strict undefined is passed (meaning we don't know the subtasks)
     let subs = inlineSubs;
-    if (!subs || subs.length === 0) {
+    if (subs === undefined) {
         subs = await fetchSubtasks(parentId);
     }
+    const toggleBtn = document.getElementById(`toggle-${ctx}-${parentId}`);
     if (subs.length > 0) {
         container.innerHTML = subs.map(s => createTodoItemHTML(s, true, ctx)).join('');
+        container.style.display = 'none'; // collapsed by default
+        if (toggleBtn) {
+            toggleBtn.style.visibility = 'visible';
+            toggleBtn.classList.remove('expanded');
+        }
     } else {
         container.innerHTML = '';
+        if (toggleBtn) toggleBtn.style.visibility = 'hidden';
+    }
+}
+
+function toggleSubtasks(parentId, ctx) {
+    const container = document.getElementById(`subtasks-${ctx}-${parentId}`);
+    const btn = document.getElementById(`toggle-${ctx}-${parentId}`);
+    if (!container || !btn) return;
+
+    if (container.style.display === 'none') {
+        container.style.display = 'flex';
+        btn.classList.add('expanded');
+    } else {
+        container.style.display = 'none';
+        btn.classList.remove('expanded');
     }
 }
 
@@ -330,7 +360,7 @@ async function selectCalendarDay(dateStr) {
 
         // Load subtasks into containers
         for (const parent of parents) {
-            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id], 'cal');
+            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id] || [], 'cal');
         }
     }
     $calendarDayPanel.style.display = 'block';
@@ -411,23 +441,65 @@ function openAddModal() {
     setTimeout(() => $todoTitleInput.focus(), 100);
 }
 
-function openSubtaskModal(parentId) {
+async function openSubtaskModal(parentId) {
     editingTodoId = null;
     parentIdForNew = parentId;
-    $modalTitle.textContent = 'Add Subtask';
-    $modalSubmit.textContent = 'Add Subtask';
+    $modalTitle.textContent = 'Add Subtasks';
+    $modalSubmit.textContent = 'Add Subtasks';
     $todoForm.reset();
 
-    const now = new Date();
-    if (currentView === 'list') {
-        const dateStr = toDateStr(currentDate);
-        $todoDatetimeInput.value = `${dateStr}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    } else {
-        $todoDatetimeInput.value = '';
+    // Fetch parent and inherit its properties
+    const res = await fetch(`${API}/${parentId}`);
+    const parent = await res.json();
+
+    $todoCategoryInput.value = parent.category || 'Other';
+    $todoImportantInput.checked = !!parent.is_important;
+    $todoUrgentInput.checked = !!parent.is_urgent;
+    $todoDatetimeInput.value = parent.date_time || '';
+
+    // Show multi-line subtask inputs
+    $todoTitleInput.style.display = 'none';
+    $todoTitleInput.removeAttribute('required');
+    let subtaskInputs = document.getElementById('subtask-inputs');
+    if (!subtaskInputs) {
+        subtaskInputs = document.createElement('div');
+        subtaskInputs.id = 'subtask-inputs';
+        subtaskInputs.className = 'subtask-inputs';
+        $todoTitleInput.parentNode.appendChild(subtaskInputs);
     }
+    subtaskInputs.innerHTML = '';
+    function subtaskKeyHandler(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const input = e.target;
+            const next = input.nextElementSibling;
+            if (next) {
+                next.focus();
+            } else {
+                const extra = document.createElement('input');
+                extra.type = 'text';
+                extra.className = 'subtask-line';
+                extra.placeholder = `Subtask ${subtaskInputs.children.length + 1}`;
+                extra.autocomplete = 'off';
+                extra.addEventListener('keydown', subtaskKeyHandler);
+                subtaskInputs.appendChild(extra);
+                extra.focus();
+            }
+        }
+    }
+    for (let i = 0; i < 4; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'subtask-line';
+        input.placeholder = `Subtask ${i + 1}`;
+        input.autocomplete = 'off';
+        input.addEventListener('keydown', subtaskKeyHandler);
+        subtaskInputs.appendChild(input);
+    }
+    subtaskInputs.style.display = 'flex';
 
     $modalOverlay.classList.add('open');
-    setTimeout(() => $todoTitleInput.focus(), 100);
+    setTimeout(() => subtaskInputs.firstChild.focus(), 100);
 }
 
 async function openEditModal(id) {
@@ -451,27 +523,54 @@ function closeModal() {
     $modalOverlay.classList.remove('open');
     editingTodoId = null;
     parentIdForNew = null;
+    // Restore single title input
+    $todoTitleInput.style.display = '';
+    $todoTitleInput.setAttribute('required', '');
+    const subtaskInputs = document.getElementById('subtask-inputs');
+    if (subtaskInputs) subtaskInputs.style.display = 'none';
 }
 
 async function handleFormSubmit(e) {
     e.preventDefault();
 
-    const data = {
-        title: $todoTitleInput.value.trim(),
-        category: $todoCategoryInput.value,
-        is_important: $todoImportantInput.checked,
-        is_urgent: $todoUrgentInput.checked,
-        date_time: $todoDatetimeInput.value || null
-    };
-
-    if (!data.title) return;
-
     if (editingTodoId) {
+        // Editing existing task
+        const data = {
+            title: $todoTitleInput.value.trim(),
+            category: $todoCategoryInput.value,
+            is_important: $todoImportantInput.checked,
+            is_urgent: $todoUrgentInput.checked,
+            date_time: $todoDatetimeInput.value || null
+        };
+        if (!data.title) return;
         await apiUpdateTodo(editingTodoId, data);
-    } else {
-        if (parentIdForNew) {
-            data.parent_id = parentIdForNew;
+    } else if (parentIdForNew) {
+        // Creating subtasks — batch from multi-line inputs
+        const subtaskInputs = document.getElementById('subtask-inputs');
+        const lines = subtaskInputs ? subtaskInputs.querySelectorAll('.subtask-line') : [];
+        const titles = Array.from(lines).map(l => l.value.trim()).filter(t => t);
+        if (titles.length === 0) return;
+
+        for (const title of titles) {
+            await apiCreateTodo({
+                title,
+                category: $todoCategoryInput.value,
+                is_important: $todoImportantInput.checked,
+                is_urgent: $todoUrgentInput.checked,
+                date_time: $todoDatetimeInput.value || null,
+                parent_id: parentIdForNew
+            });
         }
+    } else {
+        // Creating new top-level task
+        const data = {
+            title: $todoTitleInput.value.trim(),
+            category: $todoCategoryInput.value,
+            is_important: $todoImportantInput.checked,
+            is_urgent: $todoUrgentInput.checked,
+            date_time: $todoDatetimeInput.value || null
+        };
+        if (!data.title) return;
         await apiCreateTodo(data);
     }
 
@@ -520,9 +619,12 @@ $modalOverlay.addEventListener('click', (e) => {
     if (e.target === $modalOverlay) closeModal();
 });
 
-// Escape key closes modal
+// Escape key closes modals
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+        closeModal();
+        closeSettings();
+    }
 });
 
 // Category filter
@@ -536,5 +638,153 @@ document.getElementById('menu-toggle').addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('open');
 });
 
+// ─── Settings / Category Management ─────────────────────
+const $settingsOverlay = document.getElementById('settings-overlay');
+const $settingsCatList = document.getElementById('settings-cat-list');
+
+let categories = []; // loaded from API
+
+async function fetchCategories() {
+    const res = await fetch('/api/categories?t=' + Date.now(), { cache: 'no-store' });
+    categories = await res.json();
+    return categories;
+}
+
+function renderSidebarCategories() {
+    const $filter = document.getElementById('category-filter');
+    let html = '<button class="category-chip active" data-category="all">All</button>';
+    categories.forEach(cat => {
+        html += `<button class="category-chip" data-category="${escapeHtml(cat.name)}">
+            <span class="cat-dot" style="background:${cat.color}"></span>${escapeHtml(cat.name)}
+        </button>`;
+    });
+    $filter.innerHTML = html;
+    // Re-apply active state
+    $filter.querySelectorAll('.category-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.category === activeCategory);
+    });
+}
+
+function renderFormCategoryDropdown() {
+    let html = '';
+    categories.forEach(cat => {
+        html += `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`;
+    });
+    $todoCategoryInput.innerHTML = html;
+}
+
+function updateCategoryCSSVars() {
+    let style = document.getElementById('dynamic-cat-colors');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'dynamic-cat-colors';
+        document.head.appendChild(style);
+    }
+    let css = '';
+    categories.forEach(cat => {
+        const name = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        css += `:root { --cat-${name}: ${cat.color}; }\n`;
+        css += `.cat-${cat.name} { background: ${cat.color}20; color: ${cat.color}; }\n`;
+        css += `.todo-item[data-category="${cat.name}"]::before { background: ${cat.color}; }\n`;
+    });
+    style.textContent = css;
+}
+
+function openSettings() {
+    renderSettingsCatList();
+    $settingsOverlay.classList.add('open');
+}
+
+function closeSettings() {
+    $settingsOverlay.classList.remove('open');
+}
+
+function renderSettingsCatList() {
+    let html = '';
+    categories.forEach(cat => {
+        html += `<div class="settings-cat-row" data-id="${cat.id}">
+            <input type="color" value="${cat.color}" class="settings-cat-color"
+                onchange="updateCatColor(${cat.id}, this.value)" title="Change color">
+            <input type="text" value="${escapeHtml(cat.name)}" class="settings-cat-name"
+                onchange="renameCat(${cat.id}, this.value)">
+            <button class="icon-btn delete-btn" onclick="removeCat(${cat.id})" title="Delete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+            </button>
+        </div>`;
+    });
+    $settingsCatList.innerHTML = html;
+}
+
+async function addNewCategory() {
+    const nameInput = document.getElementById('new-cat-name');
+    const colorInput = document.getElementById('new-cat-color');
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color: colorInput.value })
+    });
+    if (res.ok) {
+        nameInput.value = '';
+        await refreshCategories();
+        renderSettingsCatList();
+    } else {
+        const err = await res.json();
+        alert(err.error || 'Error adding category');
+    }
+}
+
+async function renameCat(id, newName) {
+    newName = newName.trim();
+    if (!newName) return;
+    await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+    });
+    await refreshCategories();
+}
+
+async function updateCatColor(id, color) {
+    await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color })
+    });
+    await refreshCategories();
+}
+
+async function removeCat(id) {
+    if (!confirm('Delete this category? Tasks using it will keep their label.')) return;
+    await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+    await refreshCategories();
+    renderSettingsCatList();
+}
+
+async function refreshCategories() {
+    await fetchCategories();
+    renderSidebarCategories();
+    renderFormCategoryDropdown();
+    updateCategoryCSSVars();
+}
+
+// Settings event listeners
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+$settingsOverlay.addEventListener('click', (e) => {
+    if (e.target === $settingsOverlay) closeSettings();
+});
+document.getElementById('add-cat-btn').addEventListener('click', addNewCategory);
+document.getElementById('new-cat-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addNewCategory(); }
+});
+
 // ─── Initialize ─────────────────────────────────────────
-switchView('list');
+(async () => {
+    await refreshCategories();
+    switchView('list');
+})();

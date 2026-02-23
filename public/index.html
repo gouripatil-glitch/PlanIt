@@ -75,6 +75,16 @@
           </button>
         </div>
       </div>
+      <div class="sidebar-footer">
+        <button class="nav-btn" id="settings-btn" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span>Settings</span>
+        </button>
+      </div>
     </aside>
 
     <!-- Main Content -->
@@ -214,7 +224,33 @@
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-overlay">
+    <div class="modal settings-modal" id="settings-modal">
+      <div class="modal-header">
+        <h3>Settings</h3>
+        <button class="icon-btn" id="settings-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <h4>Categories</h4>
+        <div class="settings-cat-list" id="settings-cat-list">
+          <!-- rendered dynamically -->
+        </div>
+        <div class="settings-add-cat">
+          <input type="text" id="new-cat-name" placeholder="New category name" autocomplete="off">
+          <input type="color" id="new-cat-color" value="#8b7ec8" title="Pick color">
+          <button class="btn-primary btn-sm" id="add-cat-btn">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=9"></script>
 </body>
 
 </html>

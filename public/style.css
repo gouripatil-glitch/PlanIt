@@ -161,6 +161,12 @@ body {
   padding: 0 4px;
 }
 
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
 .category-list {
   display: flex;
   flex-direction: column;
@@ -426,6 +432,35 @@ body {
   }
 }
 
+/* Subtask Toggle Button */
+.subtask-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  transition: all var(--transition);
+  padding: 4px;
+  margin-right: -8px;
+  margin-left: -4px;
+}
+
+.subtask-toggle-btn:hover {
+  background: rgba(139, 126, 200, 0.1);
+  color: var(--accent);
+}
+
+.subtask-toggle-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.subtask-toggle-btn.expanded svg {
+  transform: rotate(90deg);
+}
+
 /* Custom Checkbox */
 .todo-checkbox {
   position: relative;
@@ -597,30 +632,6 @@ body {
   border-radius: 4px;
   flex-shrink: 0;
   margin-right: -4px;
-}
-
-.todo-item[data-category="Work"]::before {
-  background: var(--cat-work);
-}
-
-.todo-item[data-category="Personal"]::before {
-  background: var(--cat-personal);
-}
-
-.todo-item[data-category="Health"]::before {
-  background: var(--cat-health);
-}
-
-.todo-item[data-category="Shopping"]::before {
-  background: var(--cat-shopping);
-}
-
-.todo-item[data-category="Study"]::before {
-  background: var(--cat-study);
-}
-
-.todo-item[data-category="Other"]::before {
-  background: var(--cat-other);
 }
 
 /* Category badge colors */
@@ -955,6 +966,35 @@ body {
   border-color: var(--accent);
 }
 
+/* Multi-line subtask inputs */
+.subtask-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subtask-line {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color var(--transition);
+  outline: none;
+}
+
+.subtask-line:focus {
+  border-color: var(--accent);
+}
+
+.subtask-line::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .form-row {
   display: flex;
   gap: 12px;
@@ -1041,6 +1081,92 @@ body {
 .btn-secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ─── Settings Modal ────────────────────────────────────── */
+.settings-body {
+  padding: 20px;
+}
+
+.settings-body h4 {
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.settings-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.settings-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+
+.settings-cat-color {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.settings-cat-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.settings-cat-color::-webkit-color-swatch {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.settings-cat-name {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+}
+
+.settings-add-cat {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-add-cat input[type="text"] {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.settings-add-cat input[type="text"]:focus {
+  border-color: var(--accent);
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 0.8rem;
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────── */

@@ -92,4 +92,62 @@ const getTodosForMonth = (year, month) => {
   ).all(startDate, endDate);
 };
 
-module.exports = { getAllTodos, getTodosByDate, getTodoById, getSubtasks, createTodo, updateTodo, deleteTodo, getTodosForMonth };
+// ─── Categories ────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL DEFAULT '#8b7ec8',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+// Seed defaults if empty
+const catCount = db.prepare('SELECT COUNT(*) as c FROM categories').get().c;
+if (catCount === 0) {
+  const defaults = [
+    ['Work', '#7c9df0', 1],
+    ['Personal', '#c49bd4', 2],
+    ['Health', '#7ec8a4', 3],
+    ['Shopping', '#e8c547', 4],
+    ['Study', '#8b7ec8', 5],
+    ['Other', '#d4a76a', 6]
+  ];
+  const ins = db.prepare('INSERT INTO categories (name, color, sort_order) VALUES (?, ?, ?)');
+  for (const [name, color, order] of defaults) {
+    ins.run(name, color, order);
+  }
+}
+
+const getAllCategories = () => {
+  return db.prepare('SELECT * FROM categories ORDER BY sort_order ASC, id ASC').all();
+};
+
+const createCategory = ({ name, color }) => {
+  const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM categories').get().m || 0;
+  const stmt = db.prepare('INSERT INTO categories (name, color, sort_order) VALUES (?, ?, ?)');
+  const result = stmt.run(name, color || '#8b7ec8', maxOrder + 1);
+  return db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
+};
+
+const updateCategory = (id, updates) => {
+  const fields = [];
+  const values = [];
+  if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+  if (updates.color !== undefined) { fields.push('color = ?'); values.push(updates.color); }
+  if (updates.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(updates.sort_order); }
+  if (fields.length === 0) return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+  values.push(id);
+  db.prepare(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+};
+
+const deleteCategory = (id) => {
+  return db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+};
+
+module.exports = {
+  getAllTodos, getTodosByDate, getTodoById, getSubtasks,
+  createTodo, updateTodo, deleteTodo, getTodosForMonth,
+  getAllCategories, createCategory, updateCategory, deleteCategory
+};
