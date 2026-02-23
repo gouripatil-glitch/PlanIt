@@ -3,3 +3,4 @@ todos.db
 todos.db-wal
 todos.db-shm
 .DS_Store
+.data/
