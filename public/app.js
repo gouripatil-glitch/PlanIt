@@ -634,8 +634,29 @@ document.getElementById('category-filter').addEventListener('click', (e) => {
 });
 
 // Sidebar toggle (mobile)
-document.getElementById('menu-toggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
+const $sidebar = document.getElementById('sidebar');
+const $menuToggle = document.getElementById('menu-toggle');
+
+$menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    $sidebar.classList.toggle('open');
+});
+
+// Close sidebar on mobile when clicking outside or selecting an item
+document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768 && $sidebar.classList.contains('open')) {
+        const isClickInsideSidebar = $sidebar.contains(e.target);
+        const isClickOnToggle = $menuToggle.contains(e.target);
+
+        // If clicking outside the sidebar and not on the toggle button
+        if (!isClickInsideSidebar && !isClickOnToggle) {
+            $sidebar.classList.remove('open');
+        }
+        // Or if clicking a sidebar navigation item
+        else if (e.target.closest('.nav-btn') || e.target.closest('.category-chip') || e.target.closest('.priority-chip')) {
+            $sidebar.classList.remove('open');
+        }
+    }
 });
 
 // ─── Settings / Category Management ─────────────────────
