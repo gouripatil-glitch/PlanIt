@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A modern pastel-themed todo list application with calendar and list views">
+  <title>PlanIt — Stay Organized</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">✦</span>
+          <h1>PlanIt</h1>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-view="list" id="nav-list">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          <span>List View</span>
+        </button>
+        <button class="nav-btn" data-view="calendar" id="nav-calendar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span>Calendar</span>
+        </button>
+      </nav>
+      <div class="sidebar-categories">
+        <h3>Categories</h3>
+        <div class="category-list" id="category-filter">
+          <button class="category-chip active" data-category="all">All</button>
+          <button class="category-chip" data-category="Work"><span class="cat-dot"
+              style="background:var(--cat-work)"></span>Work</button>
+          <button class="category-chip" data-category="Personal"><span class="cat-dot"
+              style="background:var(--cat-personal)"></span>Personal</button>
+          <button class="category-chip" data-category="Health"><span class="cat-dot"
+              style="background:var(--cat-health)"></span>Health</button>
+          <button class="category-chip" data-category="Shopping"><span class="cat-dot"
+              style="background:var(--cat-shopping)"></span>Shopping</button>
+          <button class="category-chip" data-category="Study"><span class="cat-dot"
+              style="background:var(--cat-study)"></span>Study</button>
+          <button class="category-chip" data-category="Other"><span class="cat-dot"
+              style="background:var(--cat-other)"></span>Other</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <div class="topbar-title" id="topbar-title">
+          <h2>Today's Tasks</h2>
+          <span class="topbar-date" id="topbar-date"></span>
+        </div>
+        <div class="topbar-actions">
+          <div class="date-nav" id="date-nav">
+            <button class="icon-btn" id="prev-date" title="Previous">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button class="today-btn" id="today-btn">Today</button>
+            <button class="icon-btn" id="next-date" title="Next">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+          <button class="add-btn" id="add-todo-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Add Task</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- List View -->
+      <section class="view list-view active" id="list-view">
+        <div class="todo-list" id="todo-list">
+          <!-- Todos rendered here -->
+        </div>
+        <div class="empty-state" id="empty-state" style="display:none;">
+          <div class="empty-icon">🎯</div>
+          <h3>No tasks for this day</h3>
+          <p>Click "Add Task" to create a new todo</p>
+        </div>
+      </section>
+
+      <!-- Calendar View -->
+      <section class="view calendar-view" id="calendar-view">
+        <div class="calendar-grid" id="calendar-grid">
+          <!-- Calendar rendered here -->
+        </div>
+        <div class="calendar-day-panel" id="calendar-day-panel" style="display:none;">
+          <div class="day-panel-header">
+            <h3 id="day-panel-title">Tasks</h3>
+            <button class="icon-btn" id="close-day-panel">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div class="day-panel-list" id="day-panel-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Add New Task</h3>
+        <button class="icon-btn" id="modal-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <form id="todo-form">
+        <div class="form-group">
+          <label for="todo-title">Task Title</label>
+          <input type="text" id="todo-title" placeholder="What needs to be done?" required autocomplete="off">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="todo-category">Category</label>
+            <select id="todo-category">
+              <option value="Work">Work</option>
+              <option value="Personal">Personal</option>
+              <option value="Health">Health</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Study">Study</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="todo-datetime">Date & Time <span class="optional">(optional)</span></label>
+            <input type="datetime-local" id="todo-datetime">
+          </div>
+        </div>
+        <div class="form-row flags-row">
+          <label class="flag-toggle">
+            <input type="checkbox" id="todo-important">
+            <span class="flag-label important-flag">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              Important
+            </span>
+          </label>
+          <label class="flag-toggle">
+            <input type="checkbox" id="todo-urgent">
+            <span class="flag-label urgent-flag">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Urgent
+            </span>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="modal-cancel">Cancel</button>
+          <button type="submit" class="btn-primary" id="modal-submit">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
