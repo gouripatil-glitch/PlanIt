@@ -5,6 +5,7 @@ const {
     getAllTodos,
     getTodosByDate,
     getTodoById,
+    getSubtasks,
     createTodo,
     updateTodo,
     deleteTodo,
@@ -52,14 +53,24 @@ app.get('/api/todos/:id', (req, res) => {
     }
 });
 
+// GET /api/todos/:id/subtasks — Get subtasks of a todo
+app.get('/api/todos/:id/subtasks', (req, res) => {
+    try {
+        const subtasks = getSubtasks(req.params.id);
+        res.json(subtasks);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/todos — Create a new todo
 app.post('/api/todos', (req, res) => {
     try {
-        const { title, category, is_important, is_urgent, date_time } = req.body;
+        const { title, category, is_important, is_urgent, date_time, parent_id } = req.body;
         if (!title || !title.trim()) {
             return res.status(400).json({ error: 'Title is required' });
         }
-        const todo = createTodo({ title: title.trim(), category, is_important, is_urgent, date_time });
+        const todo = createTodo({ title: title.trim(), category, is_important, is_urgent, date_time, parent_id });
         res.status(201).json(todo);
     } catch (err) {
         res.status(500).json({ error: err.message });

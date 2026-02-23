@@ -62,6 +62,19 @@
               style="background:var(--cat-other)"></span>Other</button>
         </div>
       </div>
+      <div class="sidebar-categories">
+        <h3>Priority</h3>
+        <div class="priority-filters" id="priority-filter">
+          <button class="priority-chip" data-priority="important" id="filter-important"
+            onclick="togglePriorityFilter('important')">
+            <span class="priority-icon">★</span> Important
+          </button>
+          <button class="priority-chip" data-priority="urgent" id="filter-urgent"
+            onclick="togglePriorityFilter('urgent')">
+            <span class="priority-icon">⚡</span> Urgent
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Content -->
@@ -201,7 +214,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 
 </html>

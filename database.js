@@ -17,9 +17,18 @@ db.exec(`
     is_urgent INTEGER NOT NULL DEFAULT 0,
     date_time TEXT,
     completed INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    parent_id INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (parent_id) REFERENCES todos(id) ON DELETE CASCADE
   )
 `);
+
+// Add parent_id column if missing (migration for existing DBs)
+try {
+  db.exec(`ALTER TABLE todos ADD COLUMN parent_id INTEGER DEFAULT NULL REFERENCES todos(id) ON DELETE CASCADE`);
+} catch (e) {
+  // Column already exists, ignore
+}
 
 // Helper functions
 const getAllTodos = () => {
@@ -28,7 +37,7 @@ const getAllTodos = () => {
 
 const getTodosByDate = (date) => {
   return db.prepare(
-    "SELECT * FROM todos WHERE date(date_time) = date(?) ORDER BY date_time ASC, created_at DESC"
+    "SELECT * FROM todos WHERE date(date_time) = date(?) ORDER BY parent_id ASC NULLS FIRST, date_time ASC, created_at DESC"
   ).all(date);
 };
 
@@ -36,12 +45,16 @@ const getTodoById = (id) => {
   return db.prepare('SELECT * FROM todos WHERE id = ?').get(id);
 };
 
-const createTodo = ({ title, category, is_important, is_urgent, date_time }) => {
+const getSubtasks = (parentId) => {
+  return db.prepare('SELECT * FROM todos WHERE parent_id = ? ORDER BY created_at ASC').all(parentId);
+};
+
+const createTodo = ({ title, category, is_important, is_urgent, date_time, parent_id }) => {
   const stmt = db.prepare(`
-    INSERT INTO todos (title, category, is_important, is_urgent, date_time)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO todos (title, category, is_important, is_urgent, date_time, parent_id)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  const result = stmt.run(title, category || 'Other', is_important ? 1 : 0, is_urgent ? 1 : 0, date_time || null);
+  const result = stmt.run(title, category || 'Other', is_important ? 1 : 0, is_urgent ? 1 : 0, date_time || null, parent_id || null);
   return getTodoById(result.lastInsertRowid);
 };
 
@@ -64,6 +77,8 @@ const updateTodo = (id, updates) => {
 };
 
 const deleteTodo = (id) => {
+  // Delete subtasks first, then the parent
+  db.prepare('DELETE FROM todos WHERE parent_id = ?').run(id);
   return db.prepare('DELETE FROM todos WHERE id = ?').run(id);
 };
 
@@ -73,8 +88,8 @@ const getTodosForMonth = (year, month) => {
   const endYear = month === 12 ? year + 1 : year;
   const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
   return db.prepare(
-    "SELECT * FROM todos WHERE date(date_time) >= date(?) AND date(date_time) < date(?) ORDER BY date_time ASC"
+    "SELECT * FROM todos WHERE date(date_time) >= date(?) AND date(date_time) < date(?) ORDER BY parent_id ASC NULLS FIRST, date_time ASC"
   ).all(startDate, endDate);
 };
 
-module.exports = { getAllTodos, getTodosByDate, getTodoById, createTodo, updateTodo, deleteTodo, getTodosForMonth };
+module.exports = { getAllTodos, getTodosByDate, getTodoById, getSubtasks, createTodo, updateTodo, deleteTodo, getTodosForMonth };

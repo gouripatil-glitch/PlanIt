@@ -5,6 +5,9 @@ let currentDate = new Date();
 let calendarYear, calendarMonth;
 let editingTodoId = null;
 let activeCategory = 'all';
+let parentIdForNew = null;
+let filterImportant = false;
+let filterUrgent = false;
 
 // Initialize calendar to current month
 const today = new Date();
@@ -86,8 +89,13 @@ async function apiDeleteTodo(id) {
     await fetch(`${API}/${id}`, { method: 'DELETE' });
 }
 
+async function fetchSubtasks(parentId) {
+    const res = await fetch(`${API}/${parentId}/subtasks`);
+    return res.json();
+}
+
 // ─── Rendering: Todo Item ───────────────────────────────
-function createTodoItemHTML(todo) {
+function createTodoItemHTML(todo, isSubtask = false, ctx = 'list') {
     const cat = todo.category || 'Other';
     const timeStr = formatTime(todo.date_time);
 
@@ -95,8 +103,10 @@ function createTodoItemHTML(todo) {
     if (todo.is_important) badges += '<span class="badge badge-important">★ Important</span>';
     if (todo.is_urgent) badges += '<span class="badge badge-urgent">⚡ Urgent</span>';
 
+    const subtaskClass = isSubtask ? 'subtask-item' : '';
+
     return `
-    <div class="todo-item ${todo.completed ? 'completed' : ''}" data-id="${todo.id}" data-category="${cat}">
+    <div class="todo-item ${todo.completed ? 'completed' : ''} ${subtaskClass}" data-id="${todo.id}" data-category="${cat}">
       <label class="todo-checkbox">
         <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id}, this.checked)">
         <span class="checkmark"></span>
@@ -112,6 +122,9 @@ function createTodoItemHTML(todo) {
         </div>
       </div>
       <div class="todo-actions">
+        ${!isSubtask ? `<button class="icon-btn" onclick="event.stopPropagation(); openSubtaskModal(${todo.id})" title="Add Subtask">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>` : ''}
         <button class="icon-btn" onclick="openEditModal(${todo.id})" title="Edit">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
@@ -120,6 +133,7 @@ function createTodoItemHTML(todo) {
         </button>
       </div>
     </div>
+    ${!isSubtask ? `<div class="subtasks-container" id="subtasks-${ctx}-${todo.id}"></div>` : ''}
   `;
 }
 
@@ -138,6 +152,20 @@ async function renderListView() {
     if (activeCategory !== 'all') {
         todos = todos.filter(t => t.category === activeCategory);
     }
+    if (filterImportant) {
+        todos = todos.filter(t => t.is_important);
+    }
+    if (filterUrgent) {
+        todos = todos.filter(t => t.is_urgent);
+    }
+
+    // Separate parents and subtasks
+    const parents = todos.filter(t => !t.parent_id);
+    const subtasksByParent = {};
+    todos.filter(t => t.parent_id).forEach(t => {
+        if (!subtasksByParent[t.parent_id]) subtasksByParent[t.parent_id] = [];
+        subtasksByParent[t.parent_id].push(t);
+    });
 
     // Update title
     const todayStr = toDateStr(today);
@@ -148,12 +176,36 @@ async function renderListView() {
     }
     $topbarDate.textContent = formatDisplayDate(currentDate);
 
-    if (todos.length === 0) {
+    if (parents.length === 0 && todos.length === 0) {
         $todoList.innerHTML = '';
         $emptyState.style.display = 'flex';
     } else {
         $emptyState.style.display = 'none';
-        $todoList.innerHTML = todos.map(createTodoItemHTML).join('');
+        let html = '';
+        for (const parent of parents) {
+            html += createTodoItemHTML(parent, false, 'list');
+        }
+        $todoList.innerHTML = html;
+
+        // Now load subtasks for each parent
+        for (const parent of parents) {
+            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id], 'list');
+        }
+    }
+}
+
+async function loadSubtasksIntoContainer(parentId, inlineSubs, ctx = 'list') {
+    const container = document.getElementById(`subtasks-${ctx}-${parentId}`);
+    if (!container) return;
+    // Use inline subs if provided, otherwise fetch
+    let subs = inlineSubs;
+    if (!subs || subs.length === 0) {
+        subs = await fetchSubtasks(parentId);
+    }
+    if (subs.length > 0) {
+        container.innerHTML = subs.map(s => createTodoItemHTML(s, true, ctx)).join('');
+    } else {
+        container.innerHTML = '';
     }
 }
 
@@ -249,14 +301,37 @@ async function selectCalendarDay(dateStr) {
     if (activeCategory !== 'all') {
         todos = todos.filter(t => t.category === activeCategory);
     }
+    if (filterImportant) {
+        todos = todos.filter(t => t.is_important);
+    }
+    if (filterUrgent) {
+        todos = todos.filter(t => t.is_urgent);
+    }
 
     const d = new Date(dateStr + 'T12:00:00');
     $dayPanelTitle.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-    if (todos.length === 0) {
+    // Separate parents and subtasks
+    const parents = todos.filter(t => !t.parent_id);
+    const subtasksByParent = {};
+    todos.filter(t => t.parent_id).forEach(t => {
+        if (!subtasksByParent[t.parent_id]) subtasksByParent[t.parent_id] = [];
+        subtasksByParent[t.parent_id].push(t);
+    });
+
+    if (parents.length === 0 && todos.length === 0) {
         $dayPanelList.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📋</div><p>No tasks this day</p></div>';
     } else {
-        $dayPanelList.innerHTML = todos.map(createTodoItemHTML).join('');
+        let html = '';
+        for (const parent of parents) {
+            html += createTodoItemHTML(parent, false, 'cal');
+        }
+        $dayPanelList.innerHTML = html;
+
+        // Load subtasks into containers
+        for (const parent of parents) {
+            await loadSubtasksIntoContainer(parent.id, subtasksByParent[parent.id], 'cal');
+        }
     }
     $calendarDayPanel.style.display = 'block';
 }
@@ -317,6 +392,7 @@ function refreshCurrentView() {
 // ─── Modal ──────────────────────────────────────────────
 function openAddModal() {
     editingTodoId = null;
+    parentIdForNew = null;
     $modalTitle.textContent = 'Add New Task';
     $modalSubmit.textContent = 'Add Task';
     $todoForm.reset();
@@ -325,6 +401,25 @@ function openAddModal() {
     const now = new Date();
     if (currentView === 'list') {
         // Set to the currently viewed date
+        const dateStr = toDateStr(currentDate);
+        $todoDatetimeInput.value = `${dateStr}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    } else {
+        $todoDatetimeInput.value = '';
+    }
+
+    $modalOverlay.classList.add('open');
+    setTimeout(() => $todoTitleInput.focus(), 100);
+}
+
+function openSubtaskModal(parentId) {
+    editingTodoId = null;
+    parentIdForNew = parentId;
+    $modalTitle.textContent = 'Add Subtask';
+    $modalSubmit.textContent = 'Add Subtask';
+    $todoForm.reset();
+
+    const now = new Date();
+    if (currentView === 'list') {
         const dateStr = toDateStr(currentDate);
         $todoDatetimeInput.value = `${dateStr}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
     } else {
@@ -355,6 +450,7 @@ async function openEditModal(id) {
 function closeModal() {
     $modalOverlay.classList.remove('open');
     editingTodoId = null;
+    parentIdForNew = null;
 }
 
 async function handleFormSubmit(e) {
@@ -373,6 +469,9 @@ async function handleFormSubmit(e) {
     if (editingTodoId) {
         await apiUpdateTodo(editingTodoId, data);
     } else {
+        if (parentIdForNew) {
+            data.parent_id = parentIdForNew;
+        }
         await apiCreateTodo(data);
     }
 
@@ -386,6 +485,18 @@ function setActiveCategory(cat) {
     document.querySelectorAll('.category-chip').forEach(c => {
         c.classList.toggle('active', c.dataset.category === cat);
     });
+    refreshCurrentView();
+}
+
+// ─── Priority Filter ──────────────────────────────────
+function togglePriorityFilter(type) {
+    if (type === 'important') {
+        filterImportant = !filterImportant;
+        document.getElementById('filter-important').classList.toggle('active', filterImportant);
+    } else if (type === 'urgent') {
+        filterUrgent = !filterUrgent;
+        document.getElementById('filter-urgent').classList.toggle('active', filterUrgent);
+    }
     refreshCurrentView();
 }
 
